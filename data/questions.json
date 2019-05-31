@@ -1,0 +1,63 @@
+{
+  "challiss-simplesurveyservice-19-06-17-19-48-QuestionsTable-1H9G9SP": [
+        {
+            "PutRequest": {
+                "Item": {
+                    "qid": {"N":"1"},
+                    "number": {"N":"1"},
+                    "question": {"S":"Was there interference in the play?"},
+                    "answers": {"M": {
+                      "SINGLE": {"S": "Yes!!! The Seahawks were robbed!"},
+                      "DOUBLE": {"S": "No way - Patriots had this!!"},
+                      "LONG": {"S": "Too close to call"},
+                    }}
+                }
+            }
+        },
+        {
+            "PutRequest": {
+                "Item": {
+                    "qid": {"N":"1"},
+                    "number": {"N":"1"},
+                    "question": {"S":"How many services does AWS have?"},
+                    "answers": {"M": {
+                      "SINGLE": {"S": "1"},
+                      "DOUBLE": {"S": "90+"},
+                      "TRIPLE": {"S": "999"}
+                    }}
+                }
+            }
+        },
+        {
+            "PutRequest": {
+                "Item": {
+                    "qid": {"N":"1"},
+                    "number": {"N":"1"},
+                    "question": {"S":"What is the recommended way of scaling compute resources?"},
+                    "answers": {"M": {
+                      "DOUBLE": {"S": "Use smaller instances but more of them (in an autoscaling configuration)"},
+                      "SINGLE": {"S": "Increase the instance size. Bigger is always better!"},
+                      "TRIPLE": {"S": "Not sure"}
+                    }}
+                }
+            }
+        },
+        {
+            "PutRequest": {
+                "Item": {
+                    "qid": {"N":"1"},
+                    "number": {"N":"1"},
+                    "question": {"S":"What is the key value of AWS?"},
+                    "answers": {"M": {
+                      "QUINT": {"S": "Breadth of services"},
+                      "DOUBLE": {"S": "Elasticity"},
+                      "SINGLE": {"S": "All of these"},
+                      "QUAD": {"S": "Agility"},
+                      "LONG": {"S": "Go Global in minutes"},
+                      "SEXT": {"S": "Cost"}
+                    }}
+                }
+            }
+        }
+    ]
+}

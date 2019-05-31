@@ -1,0 +1,294 @@
+
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}static/css/style.css"></link>
+        <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}static/lib/bootstrap/css/bootstrap.min.css"></link>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}static/lib/bootstrap/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}static/lib/d3.min.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}static/lib/react-0.12.2/build/react-with-addons.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}static/lib/react-0.12.2/build/JSXTransformer.js"></script>
+        <meta name="viewport" content="width=device-width">
+        <meta name="viewport" content="width=320">
+        <link rel="apple-touch-icon" href="{{STATIC_URL}}static/apple-touch-icon.png"/>
+        <style>
+            body {
+                padding: 1em;
+                max-width: 700px;
+                margin: 0 auto;
+            }
+        </style>
+
+        <script>
+            // Initialize the Amazon Cognito credentials provider
+            AWS.config.region = 'us-east-1'; // Region
+            AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+                IdentityPoolId: 'us-east-1:df30b4f1-c22c-489c-a238-674437a43d7c',
+            });
+
+            // After refresh
+            var identityId = AWS.config.credentials.identityId;
+
+            var cognito = new AWS.CognitoIdentity();
+            cognito.describeIdentity({IdentityId: identityId}, callback);
+        </script>
+    </head>
+    <body>
+
+<script>
+  // write out a unique identifier (as a mock session)
+  if (!Date.now) {
+    Date.now = new Date().getTime();
+  }
+  var hash = Date.now();
+  document.write( '<input type="hidden" name="voterID" id="voterID" value="'+hash+'">');
+</script>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="btn-group" role="group" aria-label="...">
+          <button type="button" class="btn btn-default" onClick="previousQuestion()">&lt;</button>
+          <button type="button" class="btn btn-default" onClick="nextQuestion()">&gt;</button>
+
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Questions
+              <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu">
+                <li id="questionsDropdown" role="presentation">
+                   <a role="menuitem" href="#">Waiting...</a>
+                </li>
+            </ul>
+          </div>
+        </div>
+        <button type="button" class="btn btn-default pull-right" onClick="resetVotes()">Reset Votes</button>
+    </div>
+</div> <!-- /row -->
+
+<div class="row">
+    <div class="col-md-12">
+    <h2 id="questionTitle">Loading...</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div id="graph-usage"><p class="center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</p></div>
+    </div>
+</div> <!-- /row -->
+
+<div class="row">
+    <div class="col-md-12">
+
+        <!--<button type="button" class="btn btn-default pull-right" onClick="castVote('DOUBLE')">Vote</button>-->
+    </div>
+</div> <!-- /row -->
+
+
+
+    <script type="text/jsx">
+      var SCDonutChartGraph = React.createClass({
+
+        drawGraph: function() {
+          var el = this.getDOMNode();
+          var svg = d3.select(el).html('').append('svg')
+              .attr('class', 'd3')
+              .attr('width', this.props.size)
+              .attr('height', this.props.size);
+          var arc = d3.svg.arc()
+              .innerRadius(this.props.size/4)
+              .outerRadius(this.props.size/2)
+              .startAngle(function(d) { return d.start })
+              .endAngle(function(d) { return d.end });
+
+          // Draw donut circle
+          var offset = this.props.size / 2
+          svg.selectAll("path")
+              .data(this.props.data)
+              .enter()
+              .append("path")
+              .attr("d", arc)
+              .style("fill", function(d){ return d.color })
+              .attr("transform", "translate(" + offset + "," + offset + ")");
+
+          // Draw center label
+          svg.append("text").text(this.props.label)
+              .attr("font-size", "1.5em")
+              .attr("fill", "#aaa")
+              .attr("x", this.props.size/2)
+              .attr("y", this.props.size/2)
+              .attr("text-anchor", "middle")
+              .attr("dy", ".35em");
+        },
+
+        componentDidMount: function() {
+            this.drawGraph();
+        },
+
+        componentDidUpdate: function() {
+            this.drawGraph();
+        },
+
+        render: function() {
+            return <div className="sc-donut-chart-graph"></div>
+        }
+
+      });
+
+      var SCDonutChart = React.createClass({
+
+        transformData: function() {
+            var colors = [
+              "#2bcabf",    // teal
+              "#d83d3c",    // red
+              "#f8b143",    // yellow
+              "#aaa",       // grey
+              "#58aadd",    // blue
+              "#888",       // dark grey
+              "#f38a31"     // orange
+            ]
+            var data = this.props.data;
+            var total = d3.sum(data.map(function(d){return d[1]}));
+            var scale = d3.scale
+                .linear()
+                .domain([0, total])
+                .range([0, 2 * Math.PI]);
+            var out = [];
+            var start = 0;
+            var index = 0;
+            data.forEach(function(i){
+                newstart = scale(i[1]) + start;
+                out.push({
+                    'domain': i[0],
+                    'url': i[2],
+                    'size': i[1],
+                    'start': start,
+                    'end': newstart,
+                    'color': colors[index % colors.length]
+                });
+                start = newstart;
+                index += 1;
+            });
+            return out
+        },
+
+        render: function() {
+          var data = this.transformData();
+          // TODO: Data computed twice
+          var createItem = function(item){
+              var indicatorStyle = {
+                  backgroundColor: item.color,
+              }
+              return <tr>
+                <td width="1em"><div className='indicator' style={indicatorStyle}>&nbsp;</div></td>
+                <td>{item.domain}</td>
+                <td>{item.size}</td>
+                  <td><button className="btn btn-default pull-right" type="button" onClick={() => this.castVote(item.url)}>Vote</button></td>
+              </tr>
+
+          }
+            return <div className="sc-donut-chart">
+                <SCDonutChartGraph data={data} label={this.props.label} size={this.props.size} />
+                <table className="table">
+                    <tbody>
+                    {data.map(createItem)}
+                    </tbody>
+                </table>
+            </div>
+        }
+      });
+
+      var question_number = 1;
+      var base_url = '{{API_URL}}';
+
+      var renderDonutWithAjaxData = function(data, textStatus, xhr) {
+        if (xhr.status == 200) {
+            console.log("rendering question " + question_number)
+        var transformed_data = data.answers.map(i => [i.answer, i.vote_count, i.click_type]);
+        //var transformed_data = [["This is a long answer for the question isn't it?", 0], ["This is another quite long answer", 0]];
+        //var transformed_data = [["This is a long answer for the question isn't it?", 12], ["This is another quite long answer", 15], ["None", 3]];
+        var total = data.total_valid_votes;
+        var label = total + " votes";
+        React.render(<SCDonutChart data={transformed_data} label={label} size="200" />,
+            document.getElementById('graph-usage')
+        );
+
+        document.getElementById('questionTitle').innerHTML = data.question_number + ') ' + data.question;
+        } else {
+            console.log('Problem getting question ' + question_number);
+        }
+      };
+
+      var castVote = function(clickType) {
+        var url = base_url + 'vote?voterID=' + document.getElementById('voterID').value + '&clickType=' + clickType;
+        console.log("casting vote...");
+        $.post(url, {});
+      };
+
+
+      var getVotesAndRender = function() {
+        var url = base_url + 'results?question=' + question_number;
+        $.get(url, {}, renderDonutWithAjaxData);
+      };
+
+      var getQuestionsAndRender = function() {
+        var url = base_url + 'questions';
+          $.get(url, {}, function(data, textStatus, xhr) {
+              if (xhr.status == 200) {
+                  window.total_questions = data.questions_count;
+                  console.log("rendering questions dropdown ");
+                  $('#questionsDropdown').empty();
+                  $(data.questions).each(function(index, value) {
+                      var num = index + 1;
+                      $('#questionsDropdown').append('<a role="menuitem" href="javascript:updateQuestion('+num+')">Question '+num+'</a>');
+                  });
+              };
+            }
+          );
+      };
+
+      var updateQuestion = function(num) {
+        window.question_number = num;
+        getVotesAndRender();
+      };
+
+      var nextQuestion = function() {
+        if (window.question_number < window.total_questions) {
+            window.question_number += 1;
+            getVotesAndRender();
+        }
+      };
+
+      var previousQuestion = function() {
+        if (window.question_number > 1) {
+            window.question_number -= 1;
+            getVotesAndRender();
+        }
+      };
+
+      var resetVotes = function() {
+        var url = base_url + 'reset';
+        console.log("resetting votes...");
+        $.post(url, {});
+      };
+
+      getQuestionsAndRender();
+      getVotesAndRender();
+
+      // Kick off auto refresh
+      intervalHandle = window.setInterval(getVotesAndRender, 3000);
+      window.setTimeout(function() {
+        console.log("Clearing interval timeout...")
+        window.clearInterval(intervalHandle);
+      }, 1000 * 60 * 120); // stop refreshing after X minutes
+
+    </script>
+'
+<script>
+</script>
+
+
+    </body>
+</html>
+

@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple Voting Service utilizing Lambda, APIGW and DynamoDB.
+
+
+Resources:
+
+  #WebsiteBucket:
+    #Type: AWS::S3::Bucket
+    #Properties:
+      #AccessControl: PublicRead
+      #WebsiteConfiguration:
+          #IndexDocument: index.html
+          #ErrorDocument: error.html
+
+  ########################
+  # Function Definitions #
+  ########################
+
+  GetQuestionVotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.get_question_votes
+      Runtime: python2.7
+      CodeUri: ./backend
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Environment:
+        Variables:
+          QUESTIONS_TABLE: !Ref QuestionsTable
+          VOTES_TABLE: !Ref VotesTable
+      Events:
+        GetResource:
+          Type: Api
+          Properties:
+            Path: /results
+            Method: get
+
+  GetAllQuestionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.get_all_questions
+      Runtime: python2.7
+      CodeUri: ./backend
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Environment:
+        Variables:
+          QUESTIONS_TABLE: !Ref QuestionsTable
+          VOTES_TABLE: !Ref VotesTable
+      Events:
+        GetResource:
+          Type: Api
+          Properties:
+            Path: /questions
+            Method: get
+
+  CastVoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.cast_vote
+      Runtime: python2.7
+      CodeUri: ./backend
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          QUESTIONS_TABLE: !Ref QuestionsTable
+          VOTES_TABLE: !Ref VotesTable
+      Events:
+        GetResource:
+          Type: Api
+          Properties:
+            Path: /vote
+            Method: post
+
+  ResetVotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.reset_votes
+      Runtime: python2.7
+      CodeUri: ./backend
+      Policies: AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          QUESTIONS_TABLE: !Ref QuestionsTable
+          VOTES_TABLE: !Ref VotesTable
+      Events:
+        GetResource:
+          Type: Api
+          Properties:
+            Path: /reset
+            Method: post
+
+  DeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+
+  # Copy code to the correct place and populate DB
+  #DeploymentLambda:
+    #Type: AWS::Serverless::Function
+    #Properties:
+      #CodeUri: ./frontend
+      #Environment:
+        #Variables:
+          #API_URL: !Join
+            #- ''
+            #- - https://
+              #- !Ref ServerlessRestApi
+              #- .execute-api.
+              #- !Ref 'AWS::Region'
+              #- .amazonaws.com
+              #- /Stage/
+          ##DEST_BUCKET: !Ref WebsiteBucket
+          #DEST_BUCKET: challiss-simplesurveyservice-greatdemo
+          #STATIC_URL: https://www.simplevotingservice.com/
+      #Handler: handler.deploy_index_to_s3
+      #MemorySize: 128
+      #Role: !GetAtt DeploymentRole.Arn
+      #Runtime: python2.7
+      #Timeout: 300
+
+  SetupDynamoLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./frontend
+      Environment:
+        Variables:
+          QUESTIONS_TABLE: !Ref QuestionsTable
+      Handler: handler.setup_dynamo
+      MemorySize: 128
+      Role: !GetAtt DeploymentRole.Arn
+      Runtime: python2.7
+      Timeout: 300
+
+  #DeploymentCustomResource:
+    #Type: Custom::LambdaDeployment
+    #Properties:
+      #ServiceToken: !GetAtt DeploymentLambda.Arn
+
+  ConfigurationCustomResource:
+    Type: Custom::SetupDynamoLambda
+    Properties:
+      ServiceToken: !GetAtt SetupDynamoLambda.Arn
+
+
+  #####################
+  # Table Definitions #
+  #####################
+
+  VotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      #TableName: "votes"
+      AttributeDefinitions:
+        -
+          AttributeName: "button"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "button"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+
+  QuestionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      #TableName: "votes"
+      AttributeDefinitions:
+        -
+          AttributeName: "number"
+          AttributeType: "N"
+      KeySchema:
+        -
+          AttributeName: "number"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+
+Outputs:
+
+  #BucketURL:
+    #Value: !GetAtt WebsiteBucket.WebsiteURL
+    #Description: URL for the static website
+
+  ApiURL:
+    Value: !Join
+      - ''
+      - - http://
+        - !Ref ServerlessRestApi
+        - .s3-website-
+        - !Ref 'AWS::Region'
+        - .amazonaws.com
+    Description: URL for Lambda APIs
